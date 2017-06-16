@@ -34,7 +34,7 @@ Here's what built 64 bit application output looks like on Intel i7-4700HQ (~2.4 
 Image paths and blur strength (sigma) values are hardcoded, at top of RecursiveBilateralFilter.cpp
 When application runs, it saves filtered image under generated name in same folder as original images
 
-Here is the same data in chart form, so it's easier to understand:
+Here is the same data in chart form, so it's easier to understand (time is in ms):
 
 ![alt text](./RBF_chart64.png "64 bit chart")
 
@@ -45,3 +45,17 @@ It's interesting to note that the same application compiled as 32 bit performs s
 Here's direct comparison of 64 bit vs 32 bit for full HD image
 
 ![alt text](./RBF_chart64vs32.png "64 vs 32 bit chart")
+
+Optimized solution provides 2 filter functions, one is designed for synchronous use - when multithreading is enabled, the function splits its work among threads and waits until they finish. Other filter function is asynchronous "push pipeline" mode, it divides task in 2 stages, horizontal filter pass and vertical filter pass. When horizontal pass is finished, it can start on next image while vertical pass starts on results of horizontal pass. 
+Further optimizations with multithreading are possible, current implementation is provided as simple example.
+
+Most of the focus of this project is on utilization of XMM and YMM registers with SSE2 and AVX2 intrinsic functions. From the charts above, it is clear that even single threaded solution offers considerable speed up over original. It's also interesting to note that additional multithreading has diminishing returns, especially for small images.
+
+SSE2 based filter solution was implemented to work with unaligned image buffers, while AVX2 requires input and output buffers to follow 32 byte alignment. It is possible to remove or relax that requirement with minor modications, there is not a significant penalty of working with unaligned memory for read operations, but write operations would need a few extra instructions and generally make for messier code
+
+This project also provides a simple unoptimized C++ implementation of the Recursive Bilateral Filter in files RBFilterPlain.h, RBFilterPlain.cpp. This implementation does not participate in tests and it is only useful for the purposes of helping to understand the core of the algorithm. It's also useful for tinkering with filter design
+
+In conclusion, the most optimized implementation of Recursive Bilateral Filter is able to achieve roughtly 10x speed up over original (slightly less)
+
+It is even possible to process full HD video at 60 fps, with some room to spare on CPU (tho not much). For video processing, it would be best to add YUV 420 support, which is somewhat more involved due to its planar format.
+
