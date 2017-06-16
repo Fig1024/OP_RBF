@@ -3,7 +3,9 @@
 This project is a derivative work based on this project:
 https://github.com/ufoym/RecursiveBF
 
-The main purpose of this project is to provide a more optimized implementation of the Recursive Bilateral Filter. For more information about the image filter, see the link above
+The main purpose of this project is to provide a more optimized implementation of the edge preserving Recursive Bilateral Filter. For more information about the image filter, see the link above
+
+This project was made with VS2015 on Windows platform, but it should be easy to port if necessary. There aren't many files and I don't think any Windows specific functions were used.
 
 Optimization is based on 3 categories: reducing memory usage, adding multithreading, adding SSE2 / AVX2 C++ intrinsics
 
