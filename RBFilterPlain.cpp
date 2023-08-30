@@ -3,6 +3,8 @@
 #include "stdafx.h"
 #include "RBFilterPlain.h"
 #include <algorithm>
+#include "assert.h"
+#include <math.h>
 
 using namespace std;
 
@@ -23,9 +25,9 @@ CRBFilterPlain::~CRBFilterPlain()
 void CRBFilterPlain::reserveMemory(int max_width, int max_height, int channels)
 {
 	// basic sanity check
-	_ASSERT(max_width >= 10 && max_width < 10000);
-	_ASSERT(max_height >= 10 && max_height < 10000);
-	_ASSERT(channels >= 1 && channels <= 4);
+	assert(max_width >= 10 && max_width < 10000);
+	assert(max_height >= 10 && max_height < 10000);
+	assert(channels >= 1 && channels <= 4);
 
 	releaseMemory();
 
@@ -138,7 +140,7 @@ int CRBFilterPlain::getDiffFactor(const unsigned char* color1, const unsigned ch
 		final_diff = 0;
 	}
 
-	_ASSERT(final_diff >= 0 && final_diff <= 255);
+	assert(final_diff >= 0 && final_diff <= 255);
 
 	return final_diff;
 }
@@ -150,11 +152,11 @@ void CRBFilterPlain::filter(unsigned char* img_src, unsigned char* img_dst,
 	float sigma_spatial, float sigma_range,
 	int width, int height, int channel)
 {
-	_ASSERT(img_src);
-	_ASSERT(img_dst);
-	_ASSERT(m_reserve_channels == channel);
-	_ASSERT(m_reserve_width >= width);
-	_ASSERT(m_reserve_height >= height);
+	assert(img_src);
+	assert(img_dst);
+	assert(m_reserve_channels == channel);
+	assert(m_reserve_width >= width);
+	assert(m_reserve_height >= height);
 
 	// compute a lookup table
 	float alpha_f = static_cast<float>(exp(-sqrt(2.0) / (sigma_spatial * 255)));
