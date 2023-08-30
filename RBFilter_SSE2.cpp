@@ -6,6 +6,10 @@
 #include <emmintrin.h>
 #include <tmmintrin.h>
 #include <thread>
+#include <string.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <iostream>
 
 
 #define MAX_RANGE_TABLE_SIZE 255
@@ -65,7 +69,8 @@ bool CRBFilterSSE2::initialize(int width, int height, int thread_count, bool pip
 	m_reserved_height = height;
 	m_thread_count = thread_count;
 
-	m_stage_buffer[0] = (unsigned char*)_aligned_malloc(m_reserved_width * m_reserved_height * 4, ALIGN_SIZE);
+//	m_stage_buffer[0] = (unsigned char*)_aligned_malloc(m_reserved_width * m_reserved_height * 4, ALIGN_SIZE);
+	m_stage_buffer[0] = (unsigned char*)aligned_alloc(ALIGN_SIZE, m_reserved_width * m_reserved_height * 4);
 	if (!m_stage_buffer[0])
 		return false;
 
@@ -73,7 +78,8 @@ bool CRBFilterSSE2::initialize(int width, int height, int thread_count, bool pip
 	{
 		for (int i = 1; i < STAGE_BUFFER_COUNT; i++)
 		{
-			m_stage_buffer[i] = (unsigned char*)_aligned_malloc(m_reserved_width * m_reserved_height * 4, ALIGN_SIZE);
+//			m_stage_buffer[i] = (unsigned char*)_aligned_malloc(m_reserved_width * m_reserved_height * 4, ALIGN_SIZE);
+			m_stage_buffer[i] = (unsigned char*)aligned_alloc(ALIGN_SIZE, m_reserved_width * m_reserved_height * 4);
 			if (!m_stage_buffer[i])
 				return false;
 		}
@@ -89,7 +95,8 @@ bool CRBFilterSSE2::initialize(int width, int height, int thread_count, bool pip
 
 	for (int i = 0; i < m_thread_count; i++)
 	{
-		m_h_line_cache[i] = (float*)_aligned_malloc(m_reserved_width * 12 * sizeof(float) , ALIGN_SIZE);
+//		m_h_line_cache[i] = (float*)_aligned_malloc(m_reserved_width * 12 * sizeof(float) , ALIGN_SIZE);
+		m_h_line_cache[i] = (float*)aligned_alloc(ALIGN_SIZE, m_reserved_width * 12 * sizeof(float));
 		if (!m_h_line_cache[i])
 			return false;
 	}
@@ -105,7 +112,8 @@ bool CRBFilterSSE2::initialize(int width, int height, int thread_count, bool pip
 
 		for (int i = 0; i < m_thread_count; i++)
 		{
-			m_v_line_cache[i] = (float*)_aligned_malloc((m_reserved_width * 8 * sizeof(float)) / m_thread_count, ALIGN_SIZE);
+//			m_v_line_cache[i] = (float*)_aligned_malloc((m_reserved_width * 8 * sizeof(float)) / m_thread_count, ALIGN_SIZE);
+            m_v_line_cache[i] = (float*)aligned_alloc(ALIGN_SIZE, (m_reserved_width * 8 * sizeof(float)) / m_thread_count);
 			if (!m_v_line_cache[i])
 				return false;
 		}
@@ -121,7 +129,7 @@ void CRBFilterSSE2::release()
 	{
 		if (m_stage_buffer[i])
 		{
-			_aligned_free(m_stage_buffer[i]);
+			free(m_stage_buffer[i]);
 			m_stage_buffer[i] = nullptr;
 		}
 	}
@@ -131,7 +139,7 @@ void CRBFilterSSE2::release()
 		for (int i = 0; i < m_thread_count; i++)
 		{
 			if (m_h_line_cache[i])
-				_aligned_free(m_h_line_cache[i]);
+				free(m_h_line_cache[i]);
 		}
 		delete[] m_h_line_cache;
 		m_h_line_cache = nullptr;
@@ -142,7 +150,7 @@ void CRBFilterSSE2::release()
 		for (int i = 0; i < m_thread_count; i++)
 		{
 			if (m_v_line_cache[i])
-				_aligned_free(m_v_line_cache[i]);
+				free(m_v_line_cache[i]);
 		}
 		delete[] m_v_line_cache;
 	}
@@ -215,7 +223,6 @@ inline void getDiffFactor3x(__m128i pix4, __m128i pix4p, __m128i* diff4x)
 	diff = _mm_adds_epu8(diff, diff_shift1);
 	diff = _mm_and_si128(diff, byte_mask); // zero out all but 1st byte
 #endif
-
 	_mm_store_si128(diff4x, diff);
 }
 
@@ -239,7 +246,8 @@ void CRBFilterSSE2::horizontalFilter(int thread_index, const unsigned char* img_
 	__m128i mask_unpack = _mm_setr_epi8(12, -1, -1, -1, 13, -1, -1, -1, 14, -1, -1, -1, 15, -1, -1, -1);
 
 	// used to store maximum difference between 2 pixels
-	__declspec(align(16)) long color_diff[4];
+//	__declspec(align(16)) long color_diff[4];
+	alignas(16) int color_diff[4];
 
 	for (int y = 0; y < height_segment; y++)
 	{
@@ -281,7 +289,6 @@ void CRBFilterSSE2::horizontalFilter(int thread_index, const unsigned char* img_
 			int buffer_inc = y * pitch + (pixels_left - 1) * 4 - 16;
 			const __m128i* src_4xCur = (const __m128i*)(img_src + buffer_inc);
 			const __m128i* src_4xPrev = (const __m128i*)(img_src + buffer_inc + 4);
-
 			while (pixels_left > 0) // outer loop 4x pixel
 			{
 				// load 4x pixel, may read backward past start of buffer, but it's OK since that extra data won't be used
@@ -432,7 +439,8 @@ void CRBFilterSSE2::verticalFilter(int thread_index, const unsigned char* img_sr
 	__m128i mask_unpack = _mm_setr_epi8(0, -1, -1, -1, 1, -1, -1, -1, 2, -1, -1, -1, 3, -1, -1, -1);
 
 	// used to store maximum difference between 2 pixels
-	__declspec(align(16)) long color_diff[4];
+//	__declspec(align(16)) long color_diff[4];
+	alignas(16) int color_diff[4];
 
 	/////////////////
 	// Bottom to top pass first

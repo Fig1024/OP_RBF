@@ -11,6 +11,8 @@
 #include "RBFilter_SSE2.h"
 #include "RBFilter_AVX2.h"
 #include <iomanip>
+//#include <stdlib.h>
+#include <malloc.h>
 
 using namespace std;
 
@@ -42,7 +44,7 @@ class TestRunTimer
 
 public:
 	void start() { begTime = clock(); }
-	float elapsedTimeMS() { return float(clock() - begTime) / (float)test_runs; }
+	float elapsedTimeMS() { return (float(clock() - begTime) / (float)test_runs * 1000) / CLOCKS_PER_SEC; }
 };
 
 // utility for setting output file name
@@ -62,14 +64,14 @@ char* modifyFilePath(char (&file_path)[_Size], const char* suffix)
 
 	// add current sigma values just for clarity
 	char extra_text[64];
-	sprintf_s(extra_text, "%0.3f_%0.3f", sigma_spatial, sigma_range);
+	sprintf(extra_text, "%0.3f_%0.3f", sigma_spatial, sigma_range);
 
 	// add suffix
-	strcat_s(file_path, "_");
-	strcat_s(file_path, suffix);
-	strcat_s(file_path, "_");
-	strcat_s(file_path, extra_text);
-	strcat_s(file_path, ".png"); // force PNG format
+	strcat(file_path, "_");
+	strcat(file_path, suffix);
+	strcat(file_path, "_");
+	strcat(file_path, extra_text);
+	strcat(file_path, ".png"); // force PNG format
 
 	return file_path;
 }
@@ -80,8 +82,8 @@ void testRunRecursiveBF_Original(const char* image_name)
 {
 	cout << "\nImage: " << image_name;
 	char file_path[256];
-	strcpy_s(file_path, images_folder_path);
-	strcat_s(file_path, image_name);
+	strcpy(file_path, images_folder_path);
+	strcat(file_path, image_name);
 
 	int width, height, channel;
 	unsigned char * img = stbi_load(file_path, &width, &height, &channel, 3);
@@ -119,8 +121,8 @@ void testRunRecursiveBF_SSE2_mt(const char* image_name, int thread_count)
 {
 	cout << "\nImage: " << image_name;
 	char file_path[256];
-	strcpy_s(file_path, images_folder_path);
-	strcat_s(file_path, image_name);
+	strcpy(file_path, images_folder_path);
+	strcat(file_path, image_name);
 
 	int width, height, channel;
 	unsigned char * img = stbi_load(file_path, &width, &height, &channel, 4);
@@ -161,7 +163,7 @@ void testRunRecursiveBF_SSE2_mt(const char* image_name, int thread_count)
 	}
 
 	char suffix[64];
-	sprintf_s(suffix, "SSE2_%dt", thread_count);
+	sprintf(suffix, "SSE2_%dt", thread_count);
 	modifyFilePath(file_path, suffix);
 	stbi_write_png(file_path, width, height, channel, img_out, width * 4);
 
@@ -174,8 +176,8 @@ void testRunRecursiveBF_SSE2_Pipelined(const char* image_name, int thread_count)
 {
 	cout << "\nImage: " << image_name;
 	char file_path[256];
-	strcpy_s(file_path, images_folder_path);
-	strcat_s(file_path, image_name);
+	strcpy(file_path, images_folder_path);
+	strcat(file_path, image_name);
 
 	int width, height, channel;
 	unsigned char * img = stbi_load(file_path, &width, &height, &channel, 4);
@@ -220,7 +222,7 @@ void testRunRecursiveBF_SSE2_Pipelined(const char* image_name, int thread_count)
 	}
 
 	char suffix[64];
-	sprintf_s(suffix, "SSE2_Pipe_%dt", thread_count);
+	sprintf(suffix, "SSE2_Pipe_%dt", thread_count);
 	modifyFilePath(file_path, suffix);
 	stbi_write_png(file_path, width, height, channel, img_out[0], width * 4);
 
@@ -235,8 +237,8 @@ void testRunRecursiveBF_AVX2_mt(const char* image_name, int thread_count)
 {
 	cout << "\nImage: " << image_name;
 	char file_path[256];
-	strcpy_s(file_path, images_folder_path);
-	strcat_s(file_path, image_name);
+	strcpy(file_path, images_folder_path);
+	strcat(file_path, image_name);
 
 	int width, height, channel;
 	unsigned char * img = stbi_load(file_path, &width, &height, &channel, 4);
@@ -263,10 +265,12 @@ void testRunRecursiveBF_AVX2_mt(const char* image_name, int thread_count)
 
 	// setup 32 byte aligned memory buffers for input and output, using optimal pitch
 	{
-		img_out = (unsigned char*)_aligned_malloc(pitch * height, 32);
+//		img_out = (unsigned char*)_aligned_malloc(pitch * height, 32);
+		img_out = (unsigned char*)memalign(32, pitch * height);
 
 		// move source image to aligned memory
-		unsigned char* buffer = (unsigned char*)_aligned_malloc(pitch * height, 32);
+//		unsigned char* buffer = (unsigned char*)_aligned_malloc(pitch * height, 32);
+		unsigned char* buffer = (unsigned char*)memalign(32, pitch * height);
 		for (int y = 0; y < height; y++)
 		{
 			memcpy(buffer + y * pitch, img + y * width * 4, width * 4);
@@ -291,12 +295,12 @@ void testRunRecursiveBF_AVX2_mt(const char* image_name, int thread_count)
 	}
 
 	char suffix[64];
-	sprintf_s(suffix, "AVX2_%dt", thread_count);
+	sprintf(suffix, "AVX2_%dt", thread_count);
 	modifyFilePath(file_path, suffix);
 	stbi_write_png(file_path, width, height, channel, img_out, pitch);
 
-	_aligned_free(img);
-	_aligned_free(img_out);
+	free(img);
+	free(img_out);
 }
 
 // using optimized AVX2 with optional multithreading, pipelined 2 stages, memory aligned
@@ -304,8 +308,8 @@ void testRunRecursiveBF_AVX2_Pipelined(const char* image_name, int thread_count)
 {
 	cout << "\nImage: " << image_name;
 	char file_path[256];
-	strcpy_s(file_path, images_folder_path);
-	strcat_s(file_path, image_name);
+	strcpy(file_path, images_folder_path);
+	strcat(file_path, image_name);
 
 	int width, height, channel;
 	unsigned char * img = stbi_load(file_path, &width, &height, &channel, 4);
@@ -332,11 +336,14 @@ void testRunRecursiveBF_AVX2_Pipelined(const char* image_name, int thread_count)
 
 	// setup 32 byte aligned memory buffers for input and output, using optimal pitch
 	{
-		img_out[0] = (unsigned char*)_aligned_malloc(pitch * height, 32);
-		img_out[1] = (unsigned char*)_aligned_malloc(pitch * height, 32);
+//		img_out[0] = (unsigned char*)_aligned_malloc(pitch * height, 32);
+//		img_out[1] = (unsigned char*)_aligned_malloc(pitch * height, 32);
+		img_out[0] = (unsigned char*)memalign(32, pitch * height);
+		img_out[1] = (unsigned char*)memalign(32, pitch * height);
 
 		// move source image to aligned memory
-		unsigned char* buffer = (unsigned char*)_aligned_malloc(pitch * height, 32);
+//		unsigned char* buffer = (unsigned char*)_aligned_malloc(pitch * height, 32);
+		unsigned char* buffer = (unsigned char*)memalign(32, pitch * height);
 		for (int y = 0; y < height; y++)
 		{
 			memcpy(buffer + y * pitch, img + y * width * 4, width * 4);
@@ -363,13 +370,13 @@ void testRunRecursiveBF_AVX2_Pipelined(const char* image_name, int thread_count)
 	}
 
 	char suffix[64];
-	sprintf_s(suffix, "AVX2_Pipe_%dt", thread_count);
+	sprintf(suffix, "AVX2_Pipe_%dt", thread_count);
 	modifyFilePath(file_path, suffix);
 	stbi_write_png(file_path, width, height, channel, img_out[0], pitch);
 
-	_aligned_free(img);
-	_aligned_free(img_out[0]);
-	_aligned_free(img_out[1]);
+	free(img);
+	free(img_out[0]);
+	free(img_out[1]);
 }
 
 /////////////////////////////////////////////////////////////////////////////

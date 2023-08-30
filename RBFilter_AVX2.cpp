@@ -8,6 +8,7 @@
 #include <immintrin.h>
 #include <smmintrin.h>
 #include <thread>
+#include <string.h>
 
 
 #define MAX_RANGE_TABLE_SIZE 255
@@ -67,7 +68,9 @@ bool CRBFilterAVX2::initialize(int width, int height, int thread_count, bool pip
 	m_reserved_height = height;
 	
 
-	m_stage_buffer[0] = (unsigned char*)_aligned_malloc(m_reserved_width * m_reserved_height * 4, ALIGN_SIZE);
+	// m_stage_buffer[0] = (unsigned char*)_aligned_malloc(m_reserved_width * m_reserved_height * 4, ALIGN_SIZE);
+	m_stage_buffer[0] = (unsigned char*)aligned_alloc(ALIGN_SIZE, m_reserved_width * m_reserved_height * 4);
+
 	if (!m_stage_buffer[0])
 		return false;
 
@@ -75,7 +78,8 @@ bool CRBFilterAVX2::initialize(int width, int height, int thread_count, bool pip
 	{
 		for (int i = 1; i < STAGE_BUFFER_COUNT; i++)
 		{
-			m_stage_buffer[i] = (unsigned char*)_aligned_malloc(m_reserved_width * m_reserved_height * 4, ALIGN_SIZE);
+			// m_stage_buffer[i] = (unsigned char*)_aligned_malloc(m_reserved_width * m_reserved_height * 4, ALIGN_SIZE);
+			m_stage_buffer[i] = (unsigned char*)aligned_alloc(ALIGN_SIZE, m_reserved_width * m_reserved_height * 4);
 			if (!m_stage_buffer[i])
 				return false;
 		}
@@ -92,7 +96,8 @@ bool CRBFilterAVX2::initialize(int width, int height, int thread_count, bool pip
 
 	for (int i = 0; i < m_thread_count; i++)
 	{
-		m_h_line_cache[i] = (float*)_aligned_malloc(m_reserved_width * 12 * sizeof(float) * 2 + 128, ALIGN_SIZE);
+		// m_h_line_cache[i] = (float*)_aligned_malloc(m_reserved_width * 12 * sizeof(float) * 2 + 128, ALIGN_SIZE);
+		m_h_line_cache[i] = (float*)aligned_alloc(ALIGN_SIZE, m_reserved_width * 12 * sizeof(float) * 2 + 128);
 		if (!m_h_line_cache[i])
 			return false;
 
@@ -111,7 +116,8 @@ bool CRBFilterAVX2::initialize(int width, int height, int thread_count, bool pip
 	int v_line_size = (m_reserved_width * 16 * sizeof(float)) / m_thread_count;
 	for (int i = 0; i < m_thread_count; i++)
 	{
-		m_v_line_cache[i] = (float*)_aligned_malloc(v_line_size, ALIGN_SIZE);
+		// m_v_line_cache[i] = (float*)_aligned_malloc(v_line_size, ALIGN_SIZE);
+		m_v_line_cache[i] = (float*)aligned_alloc(ALIGN_SIZE, v_line_size);
 		if (!m_v_line_cache[i])
 			return false;
 	}
@@ -125,7 +131,7 @@ void CRBFilterAVX2::release()
 	{
 		if (m_stage_buffer[i])
 		{
-			_aligned_free(m_stage_buffer[i]);
+			free(m_stage_buffer[i]);
 			m_stage_buffer[i] = nullptr;
 		}
 	}
@@ -135,7 +141,7 @@ void CRBFilterAVX2::release()
 		for (int i = 0; i < m_thread_count; i++)
 		{
 			if (m_h_line_cache[i])
-				_aligned_free(m_h_line_cache[i]);
+				free(m_h_line_cache[i]);
 		}
 		delete[] m_h_line_cache;
 		m_h_line_cache = nullptr;
@@ -146,7 +152,7 @@ void CRBFilterAVX2::release()
 		for (int i = 0; i < m_thread_count; i++)
 		{
 			if (m_v_line_cache[i])
-				_aligned_free(m_v_line_cache[i]);
+				free(m_v_line_cache[i]);
 		}
 		delete[] m_v_line_cache;
 		m_v_line_cache = nullptr;
@@ -263,7 +269,8 @@ void CRBFilterAVX2::horizontalFilter(int thread_index, const unsigned char* img_
 	float* line_cache = m_h_line_cache[thread_index];
 	const float* range_table = m_range_table;
 
-	__declspec(align(32)) long color_diff[16];
+	// __declspec(align(32)) long color_diff[16];
+	alignas(32) int color_diff[16];
 
 	_mm256_zeroall();
 
@@ -823,7 +830,8 @@ void CRBFilterAVX2::verticalFilter(int thread_index, const unsigned char* img_sr
 										0, -1, -1, -1, 1, -1, -1, -1, 2, -1, -1, -1, 3, -1, -1, -1); // pixel 2
 
 	// used to store maximum difference between 2 pixels
-	__declspec(align(32)) long color_diff[8];
+	// __declspec(align(32)) long color_diff[8];
+	alignas(32) int color_diff[8];
 
 	/////////////////
 	// Bottom to top pass first
